@@ -259,12 +259,9 @@ public class LoginPage extends JFrame {
             ChatClient client = new ChatClient();
             client.connect(h, port, name);   // 소켓 연결 + 닉네임 전송
 
-            // 접속 성공 → 방 목록 화면으로 전환
-            SwingUtilities.invokeLater(() -> {
-                RoomListFrame rooms = new RoomListFrame(client, h, port);
-                rooms.setVisible(true);
-                dispose();  // 로그인 창 닫기
-            });
+            RoomListFrame rooms = new RoomListFrame(client, h, port);
+            rooms.setVisible(true);
+            dispose();  // 로그인 창 닫기
 
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -344,11 +341,6 @@ public class LoginPage extends JFrame {
     }
 
     public static void main(String[] args) {
-        // 시스템 Look & Feel 적용
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {}
-
         SwingUtilities.invokeLater(LoginPage::new);
     }
 }
