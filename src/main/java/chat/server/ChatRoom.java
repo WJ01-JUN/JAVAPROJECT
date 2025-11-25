@@ -2,6 +2,7 @@ package chat.server;
 
 import chat.shared.Message;
 
+import javax.swing.*;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,13 +12,18 @@ import java.util.stream.Collectors;
 public class ChatRoom {
 
     private final String name;
+    private final String roomName;
     private final Set<ClientHandler> participants = ConcurrentHashMap.newKeySet();
 
-    // ✅ 서버 살아있는 동안 방별 채팅 내용 유지
     private final List<Message> history = new CopyOnWriteArrayList<>();
 
-    public ChatRoom(String name) {
+    public ChatRoom(String roomName) {
+        this(roomName, roomName);
+    }
+
+    public ChatRoom(String name, String roomName) {
         this.name = name;
+        this.roomName = roomName;
     }
 
     public String getName() {
@@ -34,10 +40,8 @@ public class ChatRoom {
     public void join(ClientHandler client) {
         participants.add(client);
 
-        // 1) 과거 히스토리 먼저 보내고
         sendHistoryTo(client);
 
-        // 2) 입장 시스템 메시지: 히스토리에도 저장
         broadcast(Message.systemForRoom(
                 name,
                 client.getNickname() + "님이 입장했습니다."
@@ -51,13 +55,11 @@ public class ChatRoom {
 
     public void leave(ClientHandler client) {
         if (participants.remove(client)) {
-            // ✅ 퇴장 메시지는 히스토리에는 안 남기고 현재 인원에게만 보냄
             broadcast(Message.systemForRoom(
                     name,
                     client.getNickname() + "님이 퇴장했습니다."
             ), false);
 
-            // ✅ 유저 목록 갱신
             broadcastUserList();
 
             System.out.println("[Room:" + name + "] leave: " + client.getNickname());
@@ -74,6 +76,11 @@ public class ChatRoom {
         }
     }
 
+    public void broadcastImage(String sender, ImageIcon icon, boolean saveHistory) {
+        Message msg = Message.sendImage(roomName, sender, icon);
+        broadcast(msg, saveHistory);
+    }
+
     // 기존 코드 호환용
     public void broadcast(Message msg) {
         broadcast(msg, false);
@@ -83,7 +90,6 @@ public class ChatRoom {
         return participants.isEmpty();
     }
 
-    // ✅ 참여자 목록 브로드캐스트
     public void broadcastUserList() {
         List<String> users = participants.stream()
                 .map(ClientHandler::getNickname)

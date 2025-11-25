@@ -2,6 +2,7 @@ package chat.server;
 
 import chat.shared.Message;
 
+import javax.swing.*;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -29,12 +30,10 @@ public class ClientHandler extends Thread {
     @Override
     public void run() {
         try {
-            // ⚠️ ObjectOutputStream 먼저 만들고 flush, 그 다음 InputStream
             out = new ObjectOutputStream(socket.getOutputStream());
             out.flush();
             in = new ObjectInputStream(socket.getInputStream());
 
-            // 1) 첫 메시지는 LOGIN 이어야 한다고 가정
             Object obj = in.readObject();
             if (!(obj instanceof Message first) ||
                     first.getType() != Message.Type.LOGIN ||
@@ -50,7 +49,6 @@ public class ClientHandler extends Thread {
             server.addClient(this);
             send(Message.system("환영합니다, " + nickname + "님!"));
 
-            // 2) 메시지 처리 루프
             while (true) {
                 Object o = in.readObject();
                 if (!(o instanceof Message msg)) {
@@ -62,7 +60,6 @@ public class ClientHandler extends Thread {
         } catch (Exception e) {
             System.out.println("[ClientHandler] 종료(" + nickname + "): " + e.getMessage());
         } finally {
-            // 정리
             if (currentRoom != null) {
                 currentRoom.leave(this);
                 server.removeEmptyRoom(currentRoom.getName());
@@ -75,7 +72,6 @@ public class ClientHandler extends Thread {
     private void handleMessage(Message msg) {
         switch (msg.getType()) {
             case ROOM_LIST:
-                // 클라이언트가 방 목록을 요청했을 때
                 server.sendRoomListTo(this);
                 break;
 
@@ -91,8 +87,10 @@ public class ClientHandler extends Thread {
                 handleChat(msg);
                 break;
 
+            case IMAGE:
+                handlesendImage(msg);
+
             case GAME_EVENT:
-                // 나중에 미니게임 이벤트 처리
                 break;
 
             default:
@@ -130,7 +128,6 @@ public class ClientHandler extends Thread {
 
         currentRoom = room;
         currentRoom.join(this);
-        // join() 안에서 입장 시스템 + 유저 목록 브로드캐스트까지 처리
     }
 
     private void handleChat(Message msg) {
@@ -148,6 +145,21 @@ public class ClientHandler extends Thread {
                 text
         ), true);
     }
+
+    private void handlesendImage(Message msg) {
+        if (currentRoom == null) {
+            send(Message.error("먼저 방에 입장해 주세요."));
+            return;
+        }
+
+        ImageIcon img = msg.getImage();
+        if (img == null) {
+            return;
+        }
+
+        currentRoom.broadcastImage(nickname, img, true);
+    }
+
 
     public void send(Message msg) {
         try {

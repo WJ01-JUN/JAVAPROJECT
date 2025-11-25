@@ -2,8 +2,10 @@ import chat.shared.Message;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.*;
 import java.awt.*;
+import java.io.File;
 
 public class ChatFrame extends JFrame {
 
@@ -14,7 +16,7 @@ public class ChatFrame extends JFrame {
 
     private JTextPane chatPane;
     private JTextField inputField;
-    private JButton sendButton;
+    private JButton sendButton, selectButton;
 
     private DefaultListModel<String> userListModel;
     private JList<String> userList;
@@ -39,7 +41,7 @@ public class ChatFrame extends JFrame {
         JPanel main = new JPanel(new BorderLayout(8, 8));
         main.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // ===== 상단 타이틀 =====
+        // 상단 타이틀
         JLabel title = new JLabel("방 이름: " + roomName);
         title.setFont(new Font("Dialog", Font.BOLD, 16));
         main.add(title, BorderLayout.NORTH);
@@ -47,7 +49,7 @@ public class ChatFrame extends JFrame {
         // ===== 중앙: 채팅창 (왼쪽) + 유저 목록(오른쪽) =====
         JPanel center = new JPanel(new BorderLayout(8, 8));
 
-        // 채팅창: JTextPane + StyledDocument
+        // 채팅창
         chatPane = new JTextPane();
         chatPane.setEditable(false);
         chatPane.setBackground(Color.WHITE);
@@ -70,19 +72,53 @@ public class ChatFrame extends JFrame {
 
         main.add(center, BorderLayout.CENTER);
 
-        // ===== 하단: 입력창 =====
+        // 이미지 선택, 채팅 전송
         JPanel bottom = new JPanel(new BorderLayout(5, 0));
 
         inputField = new JTextField();
         sendButton = new JButton("전송");
+        selectButton = new JButton("선택하기");
 
+        // 왼쪽에 입력창
         bottom.add(inputField, BorderLayout.CENTER);
-        bottom.add(sendButton, BorderLayout.EAST);
+
+        // 오른쪽에 선택하기, 전송
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 5, 0));
+        buttonPanel.add(selectButton);
+        buttonPanel.add(sendButton);
+        bottom.add(buttonPanel, BorderLayout.EAST);
 
         main.add(bottom, BorderLayout.SOUTH);
 
+        // 이벤트 연결
         inputField.addActionListener(e -> sendCurrentMessage());
         sendButton.addActionListener(e -> sendCurrentMessage());
+
+        // 이미지 선택 버튼
+        selectButton.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                    "JPG & GIF & PNG Images",
+                    "jpg", "gif", "png");
+            chooser.setFileFilter(filter);
+
+            int ret = chooser.showOpenDialog(ChatFrame.this);
+            if (ret != JFileChooser.APPROVE_OPTION) {
+                JOptionPane.showMessageDialog(
+                        ChatFrame.this,
+                        "파일을 선택하지 않음",
+                        "경고",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+            inputField.setText(chooser.getSelectedFile().getAbsolutePath());
+            try {
+                sendImage();
+            } catch (Exception ex) {
+                appendSystem("[오류] 이미지 전송 실패: " + ex.getMessage());
+            }
+        });
 
         setContentPane(main);
     }
@@ -99,7 +135,23 @@ public class ChatFrame extends JFrame {
         }
     }
 
-    // ===== 서버에서 오는 메시지 처리 =====
+    private void sendImage() throws Exception {
+        String filename = inputField.getText().strip();
+        if (filename.isEmpty()) return;
+
+        File file = new File(filename);
+        if (!file.exists()) {
+            appendSystem(">>파일이 존재하지 않습니다: " + filename);
+            return;
+        }
+
+        ImageIcon icon = new ImageIcon(filename);
+        client.send(Message.sendImage(roomName, client.getNickname(), icon));
+
+        inputField.setText("");
+    }
+
+    // 서버에서 오는 메세지 타입별 처리
     private void handleServerMessage(Message m) {
         switch (m.getType()) {
             case CHAT -> {
@@ -108,22 +160,27 @@ public class ChatFrame extends JFrame {
                 }
             }
             case SYSTEM -> {
-                // room이 null이면 전체용 시스템 메시지, 아니면 방용
                 String room = m.getRoom();
                 if (room == null || roomName.equals(room)) {
                     appendSystem(m.getText());
                 }
             }
-            case ERROR -> {
-                appendSystem("[오류] " + m.getText());
-            }
+            case ERROR -> appendSystem("[오류] " + m.getText());
             case USER_LIST -> {
                 if (roomName.equals(m.getRoom())) {
                     updateUserList(m);
                 }
             }
+
+            case IMAGE -> {
+                if (roomName.equals(m.getRoom())) {
+                    appendChat(m.getSender() + "님이 이미지를 보냈습니다."); // 텍스트 추가
+                    appendImage(m.getImage());  ;
+                }
+            }
+
             default -> {
-                // GAME_EVENT 등은 나중에 여기서 처리
+                // GAME_EVENT 등은 나중에 처리
             }
         }
     }
@@ -139,15 +196,30 @@ public class ChatFrame extends JFrame {
         });
     }
 
-    // ===== JTextPane에 줄 추가 (왼쪽/가운데 정렬) =====
+    // 채팅창에 채팅, 이미지 추가
 
     private void appendChat(String text) {
         appendLine(text, StyleConstants.ALIGN_LEFT, Color.BLACK, false);
     }
 
     private void appendSystem(String text) {
-        // ✅ 가운데 정렬, 회색, 이탤릭 느낌
         appendLine("[System] " + text, StyleConstants.ALIGN_CENTER, Color.GRAY, true);
+    }
+
+    private void appendImage(ImageIcon icon){
+        // 이미지 크기 조절 + t_display에 아이콘 삽입
+        chatPane.setCaretPosition(chatPane.getDocument().getLength());
+
+        if(icon.getIconWidth() > 400){
+            Image img = icon.getImage();
+            Image changeImg = img. getScaledInstance(400,-1,Image.SCALE_SMOOTH);
+            icon = new ImageIcon(changeImg);
+        }
+
+        chatPane.insertIcon(icon);
+
+        appendChat("");
+        inputField.setText("");
     }
 
     private void appendLine(String text, int align, Color color, boolean italic) {
@@ -163,7 +235,6 @@ public class ChatFrame extends JFrame {
             try {
                 int start = doc.getLength();
                 doc.insertString(start, text + "\n", attrs);
-                // 문단 정렬 적용
                 doc.setParagraphAttributes(start, (text + "\n").length(), attrs, false);
             } catch (BadLocationException e) {
                 e.printStackTrace();

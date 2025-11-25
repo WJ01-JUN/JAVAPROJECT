@@ -7,7 +7,7 @@ import java.net.Socket;
 public class ChatServerMain {
 
     public static void main(String[] args) {
-        int port = 6000; // 네가 쓰고 있는 포트에 맞춰서 변경 (예: 5000, 6000)
+        int port = 6000;
         if (args.length > 0) {
             try {
                 port = Integer.parseInt(args[0]);

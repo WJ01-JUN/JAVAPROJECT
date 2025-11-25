@@ -8,7 +8,6 @@ import java.awt.event.MouseEvent;
 
 public class LoginPage extends JFrame {
 
-    // ===== 색상 팔레트 (연두 / 초록 계열) =====
     private static final Color PRIMARY = new Color(34, 197, 94);        // 메인 초록 (#22C55E)
     private static final Color PRIMARY_HOVER = new Color(22, 163, 74);  // 진한 초록 (#16A34A)
     private static final Color BG_COLOR = new Color(240, 253, 244);     // 아주 연한 민트/연두 (#F0FDF4)
@@ -17,7 +16,6 @@ public class LoginPage extends JFrame {
     private static final Color INPUT_BORDER = new Color(187, 247, 208); // 연한 초록 테두리
     private static final Color INPUT_FOCUS = new Color(34, 197, 94);    // 포커스 초록
 
-    // ===== 컴포넌트 =====
     private JTextField tfUserName;
     private JTextField tfHost;
     private JTextField tfPort;
@@ -205,7 +203,7 @@ public class LoginPage extends JFrame {
 
         btn.setEnabled(true);
 
-        // 클릭 시 동작 (지금은 데모용)
+        // 클릭 시 동작
         btn.addActionListener(e -> onLogin());
 
         return btn;
@@ -217,7 +215,7 @@ public class LoginPage extends JFrame {
         String h = tfHost.getText().trim();
         String p = tfPort.getText().trim();
 
-        //1) 닉네임 검사
+        // 닉네임 검사
         if (name.isEmpty()) {
             JOptionPane.showMessageDialog(
                     this,
@@ -228,7 +226,7 @@ public class LoginPage extends JFrame {
             tfUserName.requestFocus();
             return;
         }
-        //2) 서버 주소 검사
+        // 서버 주소 검사
         if (h.isEmpty()) {
             JOptionPane.showMessageDialog(
                     this,
@@ -239,7 +237,7 @@ public class LoginPage extends JFrame {
             tfHost.requestFocus();
             return;
         }
-        //3) 포트 번호 검사
+        // 포트 번호 검사
         int port;
         try {
             port = Integer.parseInt(p);
@@ -257,7 +255,6 @@ public class LoginPage extends JFrame {
             return;
         }
 
-        // ✅ 여기부터 실제 서버 접속 시도
         try {
             ChatClient client = new ChatClient();
             client.connect(h, port, name);   // 소켓 연결 + 닉네임 전송
@@ -281,7 +278,6 @@ public class LoginPage extends JFrame {
     }
 
 
-    // ===== 폰트 유틸 (너무 과하게 안 가고 시스템 폰트 위주) =====
     private Font getTitleFont() {
         return new Font("Dialog", Font.BOLD, 32);
     }
@@ -302,7 +298,6 @@ public class LoginPage extends JFrame {
         return new Font("Dialog", Font.PLAIN, 11);
     }
 
-    // ===== 둥근 카드 패널 =====
     static class RoundedPanel extends JPanel {
         private final int radius;
 
@@ -322,7 +317,6 @@ public class LoginPage extends JFrame {
         }
     }
 
-    // ===== 둥근 테두리 =====
     static class RoundedBorder extends EmptyBorder {
         private final int radius;
         private final Color normalColor;
@@ -349,7 +343,6 @@ public class LoginPage extends JFrame {
         }
     }
 
-    // ===== main =====
     public static void main(String[] args) {
         // 시스템 Look & Feel 적용
         try {

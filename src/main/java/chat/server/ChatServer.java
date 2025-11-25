@@ -49,7 +49,6 @@ public class ChatServer {
         }
     }
 
-    // ===== 방 목록 관련 푸시 =====
 
     public void broadcastRoomListToAll() {
         List<String> names = List.copyOf(rooms.keySet());
@@ -64,7 +63,7 @@ public class ChatServer {
         client.send(Message.roomList(names));
     }
 
-    // 필요하면 전체 공지
+    //전체 공지
     public void broadcastSystem(String text) {
         Message m = Message.system(text);
         for (ClientHandler ch : clients) {

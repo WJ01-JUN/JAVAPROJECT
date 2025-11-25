@@ -40,8 +40,5 @@ public class Main {
         // 여기부터 host, port는 확정된 final 값
         System.out.println("Host: " + host);
         System.out.println("Port: " + port);
-
-        // 예: 여기서 소켓 만들기
-        // try (Socket socket = new Socket(host, port)) { ... }
     }
 }

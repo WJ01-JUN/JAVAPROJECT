@@ -26,15 +26,12 @@ public class ChatClient {
 
         socket = new Socket(host, port);
 
-        // ⚠️ 서버와 마찬가지로 OutputStream 먼저 생성 + flush
         out = new ObjectOutputStream(socket.getOutputStream());
         out.flush();
         in = new ObjectInputStream(socket.getInputStream());
 
-        // 1) LOGIN 메시지 전송
         send(Message.login(nickname));
 
-        // 2) 수신 스레드 시작
         listenerThread = new Thread(this::listenLoop, "client-listener");
         listenerThread.start();
     }

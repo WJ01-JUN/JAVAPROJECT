@@ -88,7 +88,7 @@ public class RoomListFrame extends JFrame {
         setContentPane(main);
     }
 
-    // ===== 서버 메시지 처리 =====
+    // 서버 메세지 처리
 
     private void handleServerMessage(Message m) {
         // 방 목록 관련 메시지만 처리하고, SYSTEM/ERROR 등은 여기서 무시
@@ -106,7 +106,7 @@ public class RoomListFrame extends JFrame {
         }
     }
 
-    // ===== 서버로 요청 보내기 =====
+    // 서버에 요청 보내기
 
     private void requestRoomList() {
         try {
@@ -134,7 +134,6 @@ public class RoomListFrame extends JFrame {
 
         try {
             client.send(Message.createRoom(name));
-            // 서버가 방 생성 후 broadcastRoomListToAll() 호출 → 자동으로 ROOM_LIST 푸시됨
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this,
                     "방 생성 실패: " + e.getMessage(),
@@ -152,16 +151,11 @@ public class RoomListFrame extends JFrame {
         }
 
         try {
-            // ✅ 먼저 ChatFrame을 만들고 리스너 등록
             ChatFrame chat = new ChatFrame(client, selected);
             chat.setVisible(true);
 
-            // ✅ 그 다음에 JOIN 메시지를 보내야
-            // 서버가 보내는 히스토리/입장 시스템 메시지를 ChatFrame이 받을 수 있음
             client.send(Message.joinRoom(selected));
 
-            // (방 목록창을 계속 보여줄지 말지는 취향대로)
-            // setVisible(false);
 
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this,
