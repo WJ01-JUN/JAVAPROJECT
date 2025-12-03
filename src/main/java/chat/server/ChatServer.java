@@ -32,12 +32,13 @@ public class ChatServer {
         return rooms.computeIfAbsent(roomName, ChatRoom::new);
     }
 
-    public ChatRoom getRoom(String roomName) {
-        return rooms.get(roomName);
-    }
+    //public Collection<String> getRoomNames() {
+       // return rooms.keySet();
+    //}
 
-    public Collection<String> getRoomNames() {
-        return rooms.keySet();
+    public ChatRoom getRoom(String roomName) {
+        if (roomName == null) return null;
+        return rooms.get(roomName);
     }
 
     public void removeEmptyRoom(String roomName) {

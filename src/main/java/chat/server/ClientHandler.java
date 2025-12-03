@@ -6,6 +6,8 @@ import javax.swing.*;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientHandler extends Thread {
 
@@ -16,7 +18,9 @@ public class ClientHandler extends Thread {
     private ObjectOutputStream out;
 
     private String nickname;
-    private ChatRoom currentRoom;
+
+    // 변경: 방 하나가 아니라, 여러 방 동시 참여 지원
+    private final Set<ChatRoom> joinedRooms = ConcurrentHashMap.newKeySet();
 
     public ClientHandler(Socket socket, ChatServer server) {
         this.socket = socket;
@@ -60,10 +64,13 @@ public class ClientHandler extends Thread {
         } catch (Exception e) {
             System.out.println("[ClientHandler] 종료(" + nickname + "): " + e.getMessage());
         } finally {
-            if (currentRoom != null) {
-                currentRoom.leave(this);
-                server.removeEmptyRoom(currentRoom.getName());
+            // 변경: 참여 중인 모든 방에서 빠져나오기
+            for (ChatRoom room : joinedRooms) {
+                room.leave(this);
+                server.removeEmptyRoom(room.getName());
             }
+            joinedRooms.clear();
+
             server.removeClient(this);
             close();
         }
@@ -88,14 +95,29 @@ public class ClientHandler extends Thread {
                 break;
 
             case IMAGE:
-                handlesendImage(msg);
+                handleSendImage(msg);
+                break;
 
             case GAME_EVENT:
+                // TODO: 나중에 미니게임 프로토콜 처리
                 break;
+
+            case LEAVE_ROOM:
+                handleLeaveRoom(msg);
 
             default:
                 send(Message.error("지원하지 않는 타입: " + msg.getType()));
         }
+    }
+
+    private void handleLeaveRoom(Message msg) {
+        String roomName = msg.getRoom();
+
+        ChatRoom room = server.getOrCreateRoom(roomName.trim());
+        joinedRooms.remove(room);
+
+        server.removeEmptyRoom(room.getName());
+
     }
 
     private void handleCreateRoom(Message msg) {
@@ -108,10 +130,11 @@ public class ClientHandler extends Thread {
         ChatRoom room = server.getOrCreateRoom(roomName.trim());
         System.out.println("[Server] 방 생성/존재 확인: " + room.getName());
 
-        // 방 목록이 바뀌었으니 전체에게 ROOM_LIST 푸시
+        // 방 목록 변경 → 전체에게 갱신
         server.broadcastRoomListToAll();
     }
 
+    // 변경: JOIN 시 기존 방을 나가지 않고, 여러 방에 동시에 참여 가능하도록
     private void handleJoinRoom(Message msg) {
         String roomName = msg.getRoom();
         if (roomName == null || roomName.isBlank()) {
@@ -121,34 +144,60 @@ public class ClientHandler extends Thread {
 
         ChatRoom room = server.getOrCreateRoom(roomName.trim());
 
-        if (currentRoom != null) {
-            currentRoom.leave(this);
-            server.removeEmptyRoom(currentRoom.getName());
-        }
-
-        currentRoom = room;
-        currentRoom.join(this);
-    }
-
-    private void handleChat(Message msg) {
-        if (currentRoom == null) {
-            send(Message.error("먼저 방에 입장해 주세요."));
+        if (joinedRooms.contains(room)) {
+            send(Message.system("이미 '" + room.getName() + "' 방에 입장해 있습니다."));
             return;
         }
+
+        joinedRooms.add(room);
+        room.join(this);
+    }
+
+    // 변경: currentRoom 대신 msg.getRoom() 기준으로 방 찾기
+    private void handleChat(Message msg) {
+        String roomName = msg.getRoom();
+        if (roomName == null || roomName.isBlank()) {
+            send(Message.error("채팅을 보낼 방 정보가 없습니다."));
+            return;
+        }
+
+        ChatRoom room = server.getRoom(roomName.trim());
+        if (room == null) {
+            send(Message.error("존재하지 않는 방입니다: " + roomName));
+            return;
+        }
+
+        if (!joinedRooms.contains(room)) {
+            send(Message.error("해당 방에 입장한 후에 채팅을 보낼 수 있습니다: " + room.getName()));
+            return;
+        }
+
         String text = msg.getText();
         if (text == null || text.isBlank()) return;
 
-        // 채팅은 히스토리에 저장
-        currentRoom.broadcast(Message.chat(
-                currentRoom.getName(),
+        room.broadcast(Message.chat(
+                room.getName(),
                 nickname,
                 text
         ), true);
     }
 
-    private void handlesendImage(Message msg) {
-        if (currentRoom == null) {
-            send(Message.error("먼저 방에 입장해 주세요."));
+    // 이미지도 동일하게 msg.getRoom() 기준으로 처리
+    private void handleSendImage(Message msg) {
+        String roomName = msg.getRoom();
+        if (roomName == null || roomName.isBlank()) {
+            send(Message.error("이미지를 보낼 방 정보가 없습니다."));
+            return;
+        }
+
+        ChatRoom room = server.getRoom(roomName.trim());
+        if (room == null) {
+            send(Message.error("존재하지 않는 방입니다: " + roomName));
+            return;
+        }
+
+        if (!joinedRooms.contains(room)) {
+            send(Message.error("해당 방에 입장한 후에 이미지를 보낼 수 있습니다: " + room.getName()));
             return;
         }
 
@@ -157,9 +206,8 @@ public class ClientHandler extends Thread {
             return;
         }
 
-        currentRoom.broadcastImage(nickname, img, true);
+        room.broadcastImage(nickname, img, true);
     }
-
 
     public void send(Message msg) {
         try {
