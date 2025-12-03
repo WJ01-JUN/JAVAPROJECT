@@ -247,6 +247,12 @@ public class ChatFrame extends JFrame {
     @Override
     public void dispose() {
         client.removeListener(listener);
+
+        try {
+            client.send(Message.leaveRoom(roomName, client.getNickname()));
+        } catch (Exception e) {
+            System.out.println("LEABE ROOM 전송실패" +  e.getMessage());
+        }
         super.dispose();
     }
 }

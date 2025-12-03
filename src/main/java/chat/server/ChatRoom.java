@@ -18,7 +18,7 @@ public class ChatRoom {
     private final List<Message> history = new CopyOnWriteArrayList<>();
 
     public ChatRoom(String roomName) {
-        this(roomName, roomName);
+        this(roomName,roomName);
     }
 
     public ChatRoom(String name, String roomName) {

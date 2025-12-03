@@ -16,7 +16,8 @@ public class Message implements Serializable {
         ERROR,          // 서버 → 클라이언트 (에러 안내)
         GAME_EVENT,     // 나중에 미니게임용
         USER_LIST ,      // 방 참가자 목록
-        IMAGE            //이미지 전달
+        IMAGE  ,          //이미지 전달
+        LEAVE_ROOM       //클라이언트 ->  서버?
     }
 
     private Type type;
@@ -26,6 +27,7 @@ public class Message implements Serializable {
     private List<String> rooms; // ROOM_LIST 용
     private List<String> users; //USER_LIST용
     private ImageIcon image;
+
 
     public Message(Type type) {
         this.type = type;
@@ -46,6 +48,13 @@ public class Message implements Serializable {
 
     public static Message joinRoom(String roomName) {
         Message m = new Message(Type.JOIN_ROOM);
+        m.room = roomName;
+        return m;
+    }
+
+    public static Message leaveRoom(String roomName, String name) {
+        Message m = new Message(Type.LEAVE_ROOM);
+        m.sender = name;
         m.room = roomName;
         return m;
     }
