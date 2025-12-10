@@ -99,7 +99,7 @@ public class ClientHandler extends Thread {
                 break;
 
             case GAME_EVENT:
-                // TODO: 나중에 미니게임 프로토콜 처리
+                handleGameEvent(msg);
                 break;
 
             case LEAVE_ROOM:
@@ -110,14 +110,62 @@ public class ClientHandler extends Thread {
         }
     }
 
+    private void handleGameEvent(Message msg) {
+        String roomName = msg.getRoom();
+        if (roomName == null || roomName.isBlank()) {
+            send(Message.gameError(null, "방 정보가 없습니다."));
+            return;
+        }
+        ChatRoom room = server.getRoom(roomName.trim());
+        if (room == null) {
+            send(Message.gameError(roomName, "존재하지 않는 방입니다."));
+            return;
+        }
+        OmokGame game = room.getOrCreateGame();
+
+        try {
+            switch (msg.getGameAction()) {
+                case REQUEST_JOIN_PLAYER -> {
+                    game.joinAsPlayer(nickname);
+                    room.broadcast(game.toStateMessage(), false);
+                }
+                case REQUEST_SPECTATOR -> {
+                    game.joinAsSpectator(nickname);
+                    // 관전자 추가 → 전체에 최신 상태 브로드캐스트
+                    room.broadcast(game.toStateMessage(), false);
+                }
+                case MOVE -> {
+                    game.placeStone(nickname, msg.getX(), msg.getY());
+                    room.broadcast(game.toStateMessage(), false);
+                }
+                case RESIGN -> {
+                    game.resign(nickname);
+                    room.broadcast(game.toStateMessage(), false);
+                }
+                default -> send(Message.gameError(roomName, "지원하지 않는 게임 액션입니다."));
+            }
+        } catch (Exception e) {
+            send(Message.gameError(roomName, e.getMessage()));
+        }
+    }
+
     private void handleLeaveRoom(Message msg) {
         String roomName = msg.getRoom();
+        if (roomName == null || roomName.isBlank()) {
+            send(Message.error("방 이름이 비어 있습니다."));
+            return;
+        }
 
-        ChatRoom room = server.getOrCreateRoom(roomName.trim());
-        joinedRooms.remove(room);
+        ChatRoom room = server.getRoom(roomName.trim());
+        if (room == null) {
+            send(Message.error("존재하지 않는 방입니다: " + roomName));
+            return;
+        }
 
-        server.removeEmptyRoom(room.getName());
-
+        if (joinedRooms.remove(room)) {
+            room.leave(this); // 참가자 목록에서 제거 + 브로드캐스트
+            server.removeEmptyRoom(room.getName());
+        }
     }
 
     private void handleCreateRoom(Message msg) {

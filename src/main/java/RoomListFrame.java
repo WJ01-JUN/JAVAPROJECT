@@ -3,7 +3,6 @@ import chat.shared.Message;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.io.IOException;
 
 public class RoomListFrame extends JFrame {
 
@@ -54,7 +53,11 @@ public class RoomListFrame extends JFrame {
         );
         profileLabel.setText(profileText);
 
+        JButton refreshBtn = new JButton("새로고침");
+        refreshBtn.addActionListener(e -> requestRoomList());
+
         top.add(profileLabel, BorderLayout.WEST);
+        top.add(refreshBtn, BorderLayout.EAST);
 
         main.add(top, BorderLayout.NORTH);
 
@@ -85,6 +88,7 @@ public class RoomListFrame extends JFrame {
     }
 
     // 서버 메세지 처리
+
     private void handleServerMessage(Message m) {
         // 방 목록 관련 메시지만 처리하고, SYSTEM/ERROR 등은 여기서 무시
         if (m.getType() == Message.Type.ROOM_LIST) {
@@ -102,7 +106,8 @@ public class RoomListFrame extends JFrame {
     }
 
     // 서버에 요청 보내기
-    private void requestRoomList() {
+
+    public void requestRoomList() {
         try {
             client.send(new Message(Message.Type.ROOM_LIST));
         } catch (Exception e) {
@@ -145,8 +150,10 @@ public class RoomListFrame extends JFrame {
         }
 
         try {
-            ChatFrame chat = new ChatFrame(client, selected);
+            ChatFrame chat = new ChatFrame(client, selected, this);
             chat.setVisible(true);
+            // 채팅방만 보이도록 현재 목록 창은 숨김
+            this.setVisible(false);
 
             client.send(Message.joinRoom(selected));
 
