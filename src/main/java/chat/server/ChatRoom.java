@@ -17,6 +17,9 @@ public class ChatRoom {
 
     private final List<Message> history = new CopyOnWriteArrayList<>();
 
+    // 방 단위 오목 게임 세션
+    private OmokGame currentGame;
+
     public ChatRoom(String roomName) {
         this(roomName,roomName);
     }
@@ -55,6 +58,16 @@ public class ChatRoom {
 
     public void leave(ClientHandler client) {
         if (participants.remove(client)) {
+            // 게임 중이라면 결과 없이 초기화 상태로 전파
+            OmokGame game = getCurrentGame();
+            if (game != null) {
+                boolean wasPlayer = game.isPlayer(client.getNickname());
+                game.onUserLeft(client.getNickname());
+                if (wasPlayer) {
+                    broadcast(game.toStateMessage(), false);
+                }
+            }
+
             broadcast(Message.systemForRoom(
                     name,
                     client.getNickname() + "님이 퇴장했습니다."
@@ -100,5 +113,17 @@ public class ChatRoom {
         for (ClientHandler ch : participants) {
             ch.send(m);
         }
+    }
+
+    // ===== 오목 게임 관리 =====
+    public synchronized OmokGame getOrCreateGame() {
+        if (currentGame == null || currentGame.isFinished() && !currentGame.hasPlayers()) {
+            currentGame = new OmokGame(this);
+        }
+        return currentGame;
+    }
+
+    public synchronized OmokGame getCurrentGame() {
+        return currentGame;
     }
 }
