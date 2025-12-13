@@ -102,7 +102,7 @@ public class RoomListFrame extends JFrame {
     }
 
     // 서버에 요청 보내기
-    private void requestRoomList() {
+    public void requestRoomList() {
         try {
             client.send(new Message(Message.Type.ROOM_LIST));
         } catch (Exception e) {
@@ -145,7 +145,7 @@ public class RoomListFrame extends JFrame {
         }
 
         try {
-            ChatFrame chat = new ChatFrame(client, selected);
+            ChatFrame chat = new ChatFrame(client, selected, this);
             chat.setVisible(true);
 
             client.send(Message.joinRoom(selected));

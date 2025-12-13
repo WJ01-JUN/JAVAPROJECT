@@ -21,6 +21,7 @@ public class Message implements Serializable {
     }
 
     public enum GameAction {
+        REQUEST_JOIN,       // 통합된 참여 요청 (자동 플레이어/관전 결정)
         REQUEST_JOIN_PLAYER,
         REQUEST_SPECTATOR,
         STATE,              // 전체 상태 동기화 (보드, 턴, 플레이어)
@@ -28,6 +29,12 @@ public class Message implements Serializable {
         RESULT,             // 최종 결과
         RESIGN,             // 기권
         ERROR               // 게임 전용 오류
+    }
+
+    // 게임 종류 enum
+    public enum GameType {
+        OMOK
+        // 추후: TICTACTOE, CONNECT4 등
     }
 
     private Type type;
@@ -40,6 +47,7 @@ public class Message implements Serializable {
 
     // ===== 게임 관련 필드 =====
     private GameAction gameAction;
+    private GameType gameType;
     private int x;
     private int y;
     private int[][] board;
@@ -133,6 +141,15 @@ public class Message implements Serializable {
 
     // ===== 게임용 편의 생성자들 =====
 
+    // 통합된 게임 참여 요청 (자동으로 플레이어/관전자 결정)
+    public static Message gameJoin(String room, GameType gameType) {
+        Message m = new Message(Type.GAME_EVENT);
+        m.room = room;
+        m.gameType = gameType;
+        m.gameAction = GameAction.REQUEST_JOIN;
+        return m;
+    }
+
     public static Message gameJoinPlayer(String room) {
         Message m = new Message(Type.GAME_EVENT);
         m.room = room;
@@ -205,6 +222,7 @@ public class Message implements Serializable {
 
     // 게임 관련 getter
     public GameAction getGameAction() { return gameAction; }
+    public GameType getGameType() { return gameType; }
     public int getX() { return x; }
     public int getY() { return y; }
     public int[][] getBoard() { return board; }

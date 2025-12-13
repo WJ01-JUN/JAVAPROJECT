@@ -22,9 +22,8 @@ public class ChatFrame extends JFrame {
     private DefaultListModel<String> userListModel;
     private JList<String> userList;
 
-    // 오목 게임 UI
-    private JButton omokPlayButton;
-    private JButton omokWatchButton;
+    // 게임 UI
+    private JButton gameButton;
     private OmokWindow omokWindow;
     private boolean requestedOmokWindow = false; // 내가 직접 참여/관전 버튼을 눌렀는지
     private boolean active = true; // 창이 닫힌 뒤에는 게임 메시지 무시
@@ -104,11 +103,9 @@ public class ChatFrame extends JFrame {
         bottom.add(buttonPanel, BorderLayout.EAST);
 
         // 게임 컨트롤 영역
-        JPanel gamePanel = new JPanel(new GridLayout(1, 2, 5, 0));
-        omokPlayButton = new JButton("오목 참여");
-        omokWatchButton = new JButton("관전");
-        gamePanel.add(omokPlayButton);
-        gamePanel.add(omokWatchButton);
+        JPanel gamePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        gameButton = new JButton("게임하기");
+        gamePanel.add(gameButton);
         bottom.add(gamePanel, BorderLayout.NORTH);
 
         main.add(bottom, BorderLayout.SOUTH);
@@ -143,8 +140,7 @@ public class ChatFrame extends JFrame {
             }
         });
 
-        omokPlayButton.addActionListener(e -> requestOmokJoin(false));
-        omokWatchButton.addActionListener(e -> requestOmokJoin(true));
+        gameButton.addActionListener(e -> showGameSelectionDialog());
 
         setContentPane(main);
     }
@@ -214,52 +210,56 @@ public class ChatFrame extends JFrame {
     }
 
     private void handleGameMessage(Message m) {
-        if (!active) return; // 이미 닫힌 창이면 무시
-        if (m.getGameAction() == Message.GameAction.ERROR) {
-            appendSystem("[오목] " + m.getText());
-            return;
-        }
-        // STATE 메시지를 기준으로 UI 갱신
-        if (m.getGameAction() == Message.GameAction.STATE) {
-            boolean iAmPlayer = client.getNickname().equals(m.getBlackPlayer()) || client.getNickname().equals(m.getWhitePlayer());
-            boolean shouldOpen = iAmPlayer || requestedOmokWindow;
-            if (!shouldOpen) {
-                // 참여/관전 의사 없고 내가 플레이어도 아니면 창 자동 오픈하지 않음
+        // EDT에서 안전하게 처리 (스레드 동기화)
+        SwingUtilities.invokeLater(() -> {
+            if (!active) return; // 이미 닫힌 창이면 무시
+            if (m.getGameAction() == Message.GameAction.ERROR) {
+                appendSystem("[오목] " + m.getText());
                 return;
             }
-            ensureOmokWindow();
-            omokWindow.applyState(m);
-            if (!omokWindow.isVisible()) {
-                omokWindow.setVisible(true);
-                // 오목이 켜지면 채팅창은 숨김
-                this.setVisible(false);
+            // STATE 메시지를 기준으로 UI 갱신
+            if (m.getGameAction() == Message.GameAction.STATE) {
+                boolean iAmPlayer = client.getNickname().equals(m.getBlackPlayer()) || client.getNickname().equals(m.getWhitePlayer());
+                boolean shouldOpen = iAmPlayer || requestedOmokWindow;
+                if (!shouldOpen) {
+                    // 참여/관전 의사 없고 내가 플레이어도 아니면 창 자동 오픈하지 않음
+                    return;
+                }
+                ensureOmokWindow();
+                omokWindow.applyState(m);
+                if (!omokWindow.isVisible()) {
+                    omokWindow.setVisible(true);
+                    // 채팅창도 계속 보이게 유지
+                }
             }
-        }
+        });
     }
 
     private void ensureOmokWindow() {
+        // 이미 EDT에서 호출되므로 synchronized 불필요
         if (omokWindow == null) {
             omokWindow = new OmokWindow(client, roomName, client.getNickname(), this::onExitOmok);
         }
     }
 
     private void onExitOmok() {
-        // 오목 창 종료 후 채팅창 복귀
-        this.setVisible(true);
         // 다시 버튼을 눌러야 창을 띄우도록 플래그 초기화
         requestedOmokWindow = false;
     }
 
-    private void requestOmokJoin(boolean spectator) {
+    private void showGameSelectionDialog() {
+        GameSelectionDialog dialog = new GameSelectionDialog(this, this::requestGameJoin);
+        dialog.setVisible(true);
+    }
+
+    private void requestGameJoin(Message.GameType gameType) {
+        if (gameType == null) return;
+
         try {
-            if (spectator) {
-                client.send(Message.gameJoinSpectator(roomName));
-            } else {
-                client.send(Message.gameJoinPlayer(roomName));
-            }
             requestedOmokWindow = true;
+            client.send(Message.gameJoin(roomName, gameType));
         } catch (Exception e) {
-            appendSystem("[오목] 요청 실패: " + e.getMessage());
+            appendSystem("[게임] 참여 실패: " + e.getMessage());
         }
     }
 

@@ -125,6 +125,11 @@ public class ClientHandler extends Thread {
 
         try {
             switch (msg.getGameAction()) {
+                case REQUEST_JOIN -> {
+                    // 자동으로 플레이어/관전자 결정
+                    game.tryJoin(nickname);
+                    room.broadcast(game.toStateMessage(), false);
+                }
                 case REQUEST_JOIN_PLAYER -> {
                     game.joinAsPlayer(nickname);
                     room.broadcast(game.toStateMessage(), false);

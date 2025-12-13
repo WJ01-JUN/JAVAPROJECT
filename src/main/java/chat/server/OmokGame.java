@@ -65,6 +65,41 @@ public class OmokGame {
         return spectators.add(nickname);
     }
 
+    /**
+     * 자동으로 플레이어/관전자 결정하여 참여
+     * @return "PLAYER" 또는 "SPECTATOR"
+     */
+    public synchronized String tryJoin(String nickname) {
+        if (finished) reset();
+
+        // 이미 플레이어인 경우
+        if (nickname.equals(blackPlayer) || nickname.equals(whitePlayer)) {
+            return "PLAYER";
+        }
+
+        // 빈 슬롯이 있으면 플레이어로
+        if (blackPlayer == null) {
+            blackPlayer = nickname;
+            spectators.remove(nickname);
+            if (whitePlayer != null && currentTurn == null) {
+                currentTurn = blackPlayer;
+            }
+            return "PLAYER";
+        }
+        if (whitePlayer == null) {
+            whitePlayer = nickname;
+            spectators.remove(nickname);
+            if (blackPlayer != null && currentTurn == null) {
+                currentTurn = blackPlayer;
+            }
+            return "PLAYER";
+        }
+
+        // 슬롯이 다 찼으면 관전자로
+        spectators.add(nickname);
+        return "SPECTATOR";
+    }
+
     public synchronized void resign(String nickname) {
         if (finished) return;
         if (!nickname.equals(blackPlayer) && !nickname.equals(whitePlayer)) {
